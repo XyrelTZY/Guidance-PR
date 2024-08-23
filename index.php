@@ -13,36 +13,45 @@ if ($conn->connect_error) {
 }
 
 // Handle form submission to add new student
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_student'])) {
-    $name = $_POST['name'];
-    $building = $_POST['building'];
-    $section = $_POST['section'];
-    $grade_level = $_POST['grade_level'];
-    $offense = $_POST['offense'];
-    $community_service_done = isset($_POST['community_service_done']) ? 1 : 0;
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (isset($_POST['add_student'])) {
+        $name = $_POST['name'];
+        $building = $_POST['building'];
+        $section = $_POST['section'];
+        $grade_level = $_POST['grade_level'];
+        $offense = $_POST['offense'];
+        $community_service_done = isset($_POST['community_service_done']) ? 1 : 0;
+        $expelled = isset($_POST['expelled']) ? 1 : 0;
 
-    $sql = "INSERT INTO students (name, building, section, grade_level, offense, community_service_done) VALUES ('$name', '$building', '$section', '$grade_level', '$offense', '$community_service_done')";
-    if ($conn->query($sql) === TRUE) {
-        echo "<div class='bg-green-100 text-green-700 p-4 rounded mb-6'>New record created successfully</div>";
-    } else {
-        echo "<div class='bg-red-100 text-red-700 p-4 rounded mb-6'>Error: " . $sql . "<br>" . $conn->error . "</div>";
-    }
-}
+        $sql = "INSERT INTO students (name, building, section, grade_level, offense, community_service_done, expelled) VALUES ('$name', '$building', '$section', '$grade_level', '$offense', '$community_service_done', '$expelled')";
+        if ($conn->query($sql) === TRUE) {
+            $message = "New record created successfully";
+        } else {
+            $message = "Error: " . $sql . "<br>" . $conn->error;
+        }
+        
+        // Redirect to the same page to prevent re-submission
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    } elseif (isset($_POST['update_student'])) {
+        $id = $_POST['id'];
+        $building = $_POST['building'];
+        $section = $_POST['section'];
+        $grade_level = $_POST['grade_level'];
+        $offense = $_POST['offense'];
+        $community_service_done = isset($_POST['community_service_done']) ? 1 : 0;
+        $expelled = isset($_POST['expelled']) ? 1 : 0;
 
-// Handle form submission to update student
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_student'])) {
-    $id = $_POST['id'];
-    $building = $_POST['building'];
-    $section = $_POST['section'];
-    $grade_level = $_POST['grade_level'];
-    $offense = $_POST['offense'];
-    $community_service_done = isset($_POST['community_service_done']) ? 1 : 0;
+        $sql = "UPDATE students SET building='$building', section='$section', grade_level='$grade_level', offense='$offense', community_service_done='$community_service_done', expelled='$expelled' WHERE id='$id'";
+        if ($conn->query($sql) === TRUE) {
+            $message = "Record updated successfully";
+        } else {
+            $message = "Error: " . $sql . "<br>" . $conn->error;
+        }
 
-    $sql = "UPDATE students SET building='$building', section='$section', grade_level='$grade_level', offense='$offense', community_service_done='$community_service_done' WHERE id='$id'";
-    if ($conn->query($sql) === TRUE) {
-        echo "<div class='bg-green-100 text-green-700 p-4 rounded mb-6'>Record updated successfully</div>";
-    } else {
-        echo "<div class='bg-red-100 text-red-700 p-4 rounded mb-6'>Error: " . $sql . "<br>" . $conn->error . "</div>";
+        // Redirect to the same page to prevent re-submission
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
     }
 }
 
@@ -59,7 +68,7 @@ $sort_column = isset($_GET['sort']) ? $_GET['sort'] : 'id';
 $sort_order = isset($_GET['order']) ? $_GET['order'] : 'ASC';
 
 // Validate sort column and order
-$valid_columns = ['id', 'name', 'building', 'section', 'grade_level', 'offense', 'community_service_done'];
+$valid_columns = ['id', 'name', 'building', 'section', 'grade_level', 'offense', 'community_service_done', 'expelled'];
 if (!in_array($sort_column, $valid_columns)) $sort_column = 'id';
 if ($sort_order !== 'ASC' && $sort_order !== 'DESC') $sort_order = 'ASC';
 
@@ -85,190 +94,251 @@ if (isset($_GET['edit'])) {
 $conn->close();
 ?>
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Modal Container */
+        .modal {
+            visibility: hidden;
+            opacity: 0;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            transition: opacity 0.3s ease;
+        }
+        /* Show Modal */
+        .modal.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        /* Modal Content */
+        .modal-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            max-width: 600px;
+            width: 100%;
+        }
+    </style>
     <title>Student Community Service</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 p-8">
-    <div class="max-w-4xl mx-auto">
-        <!-- Search Form -->
-        <form method="get" class="bg-white p-6 rounded-lg shadow-md mb-6 flex items-center space-x-4">
-            <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search by name..." class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Search</button>
-        </form>
-
-        <!-- Form to add new student -->
-        <form method="post" class="bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 class="text-xl font-bold mb-4">Add Student</h2>
-            <div class="mb-4">
-                <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
-                <input type="text" id="name" name="name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-            </div>
-            <div class="mb-4">
-                <label for="building" class="block text-sm font-medium text-gray-700">Building</label>
-                <input type="text" id="building" name="building" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-            </div>
-            <div class="mb-4">
-                <label for="section" class="block text-sm font-medium text-gray-700">Section</label>
-                <input type="text" id="section" name="section" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-            </div>
-            <div class="mb-4">
-                <label for="grade_level" class="block text-sm font-medium text-gray-700">Grade Level</label>
-                <select id="grade_level" name="grade_level" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    <option value="11">11</option>
-                    <option value="12">12</option>
-                </select>
-            </div>
-            <div class="mb-4">
-                <label for="offense" class="block text-sm font-medium text-gray-700">Offense</label>
-                <textarea id="offense" name="offense" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
-            </div>
-            <div class="mb-4">
-                <input type="checkbox" id="community_service_done" name="community_service_done">
-                <label for="community_service_done" class="ml-2 text-sm font-medium text-gray-700">Community Service Done</label>
-            </div>
-            <button type="submit" name="add_student" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Add Student</button>
-        </form>
-
-        <!-- Form to edit student -->
-        <?php if ($edit_student): ?>
-            <form method="post" class="bg-white p-6 rounded-lg shadow-md mb-6">
-                <h2 class="text-xl font-bold mb-4">Edit Student</h2>
-                <input type="hidden" name="id" value="<?php echo $edit_student['id']; ?>">
-                <div class="mb-4">
-                    <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
-                    <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($edit_student['name']); ?>" disabled class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600">
-                </div>
-                <div class="mb-4">
-                    <label for="building" class="block text-sm font-medium text-gray-700">Building</label>
-                    <input type="text" id="building" name="building" value="<?php echo htmlspecialchars($edit_student['building']); ?>" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                </div>
-                <div class="mb-4">
-                    <label for="section" class="block text-sm font-medium text-gray-700">Section</label>
-                    <input type="text" id="section" name="section" value="<?php echo htmlspecialchars($edit_student['section']); ?>" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                </div>
-                <div class="mb-4">
-                    <label for="grade_level" class="block text-sm font-medium text-gray-700">Grade Level</label>
-                    <select id="grade_level" name="grade_level" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        <option value="11" <?php echo $edit_student['grade_level'] === '11' ? 'selected' : ''; ?>>11</option>
-                        <option value="12" <?php echo $edit_student['grade_level'] === '12' ? 'selected' : ''; ?>>12</option>
-                    </select>
-                </div>
-                <div class="mb-4">
-                    <label for="offense" class="block text-sm font-medium text-gray-700">Offense</label>
-                    <textarea id="offense" name="offense" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"><?php echo htmlspecialchars($edit_student['offense']); ?></textarea>
-                </div>
-                <div class="mb-4">
-                    <input type="checkbox" id="community_service_done" name="community_service_done" <?php echo $edit_student['community_service_done'] ? 'checked' : ''; ?>>
-                    <label for="community_service_done" class="ml-2 text-sm font-medium text-gray-700">Community Service Done</label>
-                </div>
-                <button type="submit" name="update_student" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">Update Student</button>
-                <a href="index.php" class="ml-4 text-blue-500 hover:text-blue-600">Cancel</a>
-            </form>
-        <?php endif; ?>
-
-        <!-- Table displaying students -->
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 bg-white shadow-md rounded-lg">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <a href="?search=<?php echo urlencode($search); ?>&sort=id&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="flex items-center">ID 
-                                <?php if ($sort_column === 'id'): ?>
-                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                <?php endif; ?>
-                            </a>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <a href="?search=<?php echo urlencode($search); ?>&sort=name&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="flex items-center">Name 
-                                <?php if ($sort_column === 'name'): ?>
-                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                <?php endif; ?>
-                            </a>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Building</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <a href="?search=<?php echo urlencode($search); ?>&sort=grade_level&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="flex items-center">Grade Level 
-                                <?php if ($sort_column === 'grade_level'): ?>
-                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                <?php endif; ?>
-                            </a>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offense</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <a href="?search=<?php echo urlencode($search); ?>&sort=community_service_done&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="flex items-center">Community Service Done 
-                                <?php if ($sort_column === 'community_service_done'): ?>
-                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                <?php endif; ?>
-                            </a>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    <?php if ($result->num_rows > 0): ?>
-                        <?php while($row = $result->fetch_assoc()): ?>
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo $row['id']; ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($row['name']); ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($row['building']); ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($row['section']); ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($row['grade_level']); ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($row['offense']); ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo $row['community_service_done'] ? 'Yes' : 'No'; ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <a href="index.php?edit=<?php echo $row['id']; ?>" class="text-blue-500 hover:text-blue-600">Edit</a>
-                                </td>
-                            </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No records found</td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+<body class="bg-gray-">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <!-- Navigation Links -->
+            <nav class="flex space-x-4">
+                <a href="dashboard.php" class="bg-blue-400 text-black texthover:bg-blue-700 px-3 py-2 rounded">Dashboard</a>
+                <a href="logout.php" class="bg-red-700 hover:bg-blue-700 hover:font-bold px-3 py-2 rounded ">Logout</a>
+            </nav>
+            <!-- Admin Title -->
+            <div class="text-lg font-bold">Admin</div>
         </div>
+    </header>
 
-        <!-- Pagination -->
-        <div class="mt-6 flex justify-between">
-            <div>
-                <?php if ($page > 1): ?>
-                    <a href="?search=<?php echo urlencode($search); ?>&sort=<?php echo $sort_column; ?>&order=<?php echo $sort_order; ?>&page=<?php echo $page - 1; ?>" class="text-blue-500 hover:text-blue-600">&laquo; Previous</a>
-                <?php endif; ?>
+    <!-- Main Content -->
+    <main class="p-8">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row space-y-8 lg:space-y-0 lg:space-x-8">
+            <!-- Student List -->
+            <div class="w-full lg:w-2/3 relative">
+                <!-- Search Form -->
+                <form id="searchForm" method="get" class="bg-white p-6 rounded-lg shadow-md mb-6 flex items-center space-x-4">
+                    <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" class="border border-gray-300 rounded-md p-2 w-full" placeholder="Search students...">
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Search</button>
+                </form>
+
+                <!-- Students Table -->
+                <table class="min-w-full divide-y divide-gray-600">
+                    <thead class="bg-gray-50 ">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <a href="?search=<?php echo htmlspecialchars($search); ?>&sort=id&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="text-blue-500 hover:underline">ID</a>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <a href="?search=<?php echo htmlspecialchars($search); ?>&sort=name&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="text-blue-500 hover:underline">Name</a>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <a href="?search=<?php echo htmlspecialchars($search); ?>&sort=building&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="text-blue-500 hover:underline">Building</a>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <a href="?search=<?php echo htmlspecialchars($search); ?>&sort=section&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="text-blue-500 hover:underline">Section</a>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <a href="?search=<?php echo htmlspecialchars($search); ?>&sort=grade_level&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="text-blue-500 hover:underline">Grade Level</a>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <a href="?search=<?php echo htmlspecialchars($search); ?>&sort=offense&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="text-blue-500 hover:underline">Community Service Done</a>
+                            </th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-blue-500 hover:underline tracking-wider">Expelled</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <?php if ($result->num_rows > 0): ?>
+                            <?php while ($row = $result->fetch_assoc()): ?>
+                                <tr>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-900"><?php echo $row['id']; ?></td>
+                                    <td class="px-6 py-4 text-sm text-gray-500"><?php echo htmlspecialchars($row['name']); ?></td>
+                                    <td class="px-6 py-4 text-sm text-gray-500"><?php echo htmlspecialchars($row['building']); ?></td>
+                                    <td class="px-6 py-4 text-sm text-gray-500"><?php echo htmlspecialchars($row['section']); ?></td>
+                                    <td class="px-6 py-4 text-sm text-gray-500"><?php echo htmlspecialchars($row['grade_level']); ?></td>
+                                    <td class="px-6 py-4 text-sm text-gray-500"><?php echo $row['community_service_done'] ? 'Yes' : 'No'; ?></td>
+                                    <td class="px-6 py-4 text-sm text-gray-500"><?php echo $row['expelled'] ? 'Yes' : 'No'; ?></td>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-500 space-x-4">
+                                        <a href="?edit=<?php echo $row['id']; ?>" class="text-blue-600 hover:underline">Edit</a>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="8" class="px-6 py-4 text-center text-gray-500">No records found</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                <div class="mt-6 flex justify-between items-center">
+                    <div>
+                        <?php if ($page > 1): ?>
+                            <a href="?search=<?php echo urlencode($search); ?>&page=<?php echo $page - 1; ?>&sort=<?php echo $sort_column; ?>&order=<?php echo $sort_order; ?>" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Previous</a>
+                        <?php endif; ?>
+                    </div>
+                    <div>
+                        <?php if ($page < $total_pages): ?>
+                            <a href="?search=<?php echo urlencode($search); ?>&page=<?php echo $page + 1; ?>&sort=<?php echo $sort_column; ?>&order=<?php echo $sort_order; ?>" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Next</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
-            <div>
-                <?php if ($page < $total_pages): ?>
-                    <a href="?search=<?php echo urlencode($search); ?>&sort=<?php echo $sort_column; ?>&order=<?php echo $sort_order; ?>&page=<?php echo $page + 1; ?>" class="text-blue-500 hover:text-blue-600">Next &raquo;</a>
-                <?php endif; ?>
-            </div>
+
+            <!-- Add Student Form -->
+<div class="w-full lg:w-1/3">
+    <form method="post" class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-lg font-semibold mb-4 bg-blue-300 w-auto text-center h-10 pt-1 rounded-lg">Add New Student</h2>
+        <div class="mb-4">
+            <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+            <input type="text" id="name" name="name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+        </div>
+        <div class="mb-4">
+            <label for="building" class="block text-sm font-medium text-gray-700">Building</label>
+            <input type="text" id="building" name="building" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+        </div>
+        <div class="mb-4">
+            <label for="section" class="block text-sm font-medium text-gray-700">Section</label>
+            <input type="text" id="section" name="section" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+        </div>
+        <div class="mb-4">
+            <label for="grade_level" class="block text-sm font-medium text-gray-700">Grade Level</label>
+            <input type="text" id="grade_level" name="grade_level" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+        </div>
+        <div class="mb-4">
+            <label for="offense" class="block text-sm font-medium text-gray-700">Offense</label>
+            <input type="text" id="offense" name="offense" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+        </div>
+        <div class="mb-4 flex items-center">
+            <input type="checkbox" id="community_service_done" name="community_service_done" class="mr-2">
+            <label for="community_service_done" class="text-sm font-medium text-gray-700">Community Service Done</label>
+        </div>
+        <div class="mb-4 flex items-center">
+            <input type="checkbox" id="expelled" name="expelled" class="mr-2">
+            <label for="expelled" class="text-sm font-medium text-gray-700">Expelled</label>
+        </div>
+        <input type="hidden" name="add_student" value="1">
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Add Student</button>
+    </form>
+</div>
+
+        </div>
+    </main>
+    
+    <!-- Edit Student Modal -->
+    <div id="updateModal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-lg font-semibold mb-4">Edit Student</h2>
+            <form id="updateForm" method="post">
+                <input type="hidden" id="studentId" name="id">
+                <div class="mb-4">
+                    <label for="modal_building" class="block text-sm font-medium text-gray-700">Building</label>
+                    <input type="text" id="modal_building" name="building" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+                </div>
+                <div class="mb-4">
+                    <label for="modal_section" class="block text-sm font-medium text-gray-700">Section</label>
+                    <input type="text" id="modal_section" name="section" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+                </div>
+                <div class="mb-4">
+                    <label for="modal_grade_level" class="block text-sm font-medium text-gray-700">Grade Level</label>
+                    <input type="text" id="modal_grade_level" name="grade_level" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+                </div>
+                <div class="mb-4">
+                    <label for="modal_offense" class="block text-sm font-medium text-gray-700">Offense</label>
+                    <input type="text" id="modal_offense" name="offense" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+                </div>
+                <div class="mb-4 flex items-center">
+                    <input type="checkbox" id="modal_community_service_done" name="community_service_done" class="mr-2">
+                    <label for="modal_community_service_done" class="text-sm font-medium text-gray-700">Community Service Done</label>
+                </div>
+                <div class="mb-4 flex items-center">
+                    <input type="checkbox" id="modal_expelled" name="expelled" class="mr-2">
+                    <label for="modal_expelled" class="text-sm font-medium text-gray-700">Expelled</label>
+                </div>
+                <button type="submit" name="update_student" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Update Student</button>
+                <button type="button" id="closeModal" class="ml-4 bg-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-400">Close</button>
+            </form>
         </div>
     </div>
+
+    <script>
+        // Modal functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('updateModal');
+            const closeModal = document.getElementById('closeModal');
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            
+            if (editId) {
+                modal.classList.add('show');
+                fetch(`fetch_student.php?id=${editId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('studentId').value = data.id;
+                        document.getElementById('modal_building').value = data.building;
+                        document.getElementById('modal_section').value = data.section;
+                        document.getElementById('modal_grade_level').value = data.grade_level;
+                        document.getElementById('modal_offense').value = data.offense;
+                        document.getElementById('modal_community_service_done').checked = data.community_service_done;
+                        document.getElementById('modal_expelled').checked = data.expelled;
+                    });
+            }
+            
+            closeModal.addEventListener('click', () => {
+                modal.classList.remove('show');
+                history.replaceState(null, '', window.location.pathname);
+            });
+        });
+
+        function showModal(id) {
+            window.location.href = `?edit=${id}`;
+        }
+
+        function sortTable(column) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentSort = urlParams.get('sort') || 'id';
+            const currentOrder = urlParams.get('order') || 'ASC';
+            const newOrder = (currentSort === column && currentOrder === 'ASC') ? 'DESC' : 'ASC';
+            urlParams.set('sort', column);
+            urlParams.set('order', newOrder);
+            window.location.search = urlParams.toString();
+        }
+    </script>
 </body>
 </html>
-
-        <!-- Create Table From SQL -->
-<!-- CREATE TABLE IF NOT EXISTS students (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    community_service_done BOOLEAN NOT NULL
-);
- -->
-
- <!-- -- Add new columns to the students table
-ALTER TABLE students
-ADD COLUMN building VARCHAR(100) AFTER name,
-ADD COLUMN section VARCHAR(100) AFTER building,
-ADD COLUMN grade_level ENUM('11', '12') AFTER section,
-ADD COLUMN offense TEXT AFTER grade_level;
- -->
-
-<!-- Add new columns to the students table 
-ALTER TABLE students ADD COLUMN expelled TINYINT(1) DEFAULT 0;
-
--->
