@@ -267,3 +267,8 @@ ADD COLUMN section VARCHAR(100) AFTER building,
 ADD COLUMN grade_level ENUM('11', '12') AFTER section,
 ADD COLUMN offense TEXT AFTER grade_level;
  -->
+
+<!-- Add new columns to the students table 
+ALTER TABLE students ADD COLUMN expelled TINYINT(1) DEFAULT 0;
+
+-->
