@@ -18,3 +18,15 @@ ADD COLUMN offense TEXT AFTER grade_level;
 ALTER TABLE students ADD COLUMN expelled TINYINT(1) DEFAULT 0;
 
 -->
+
+
+For Dashboard
+
+CREATE TABLE student_offenses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    offense VARCHAR(255) NOT NULL,
+    section VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(id)
+);
