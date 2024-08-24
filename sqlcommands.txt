@@ -12,10 +12,12 @@ ADD COLUMN building VARCHAR(100) AFTER name,
 ADD COLUMN section VARCHAR(100) AFTER building,
 ADD COLUMN grade_level ENUM('11', '12') AFTER section,
 ADD COLUMN offense TEXT AFTER grade_level;
+
  -->
 
 <!-- Add new columns to the students table 
 ALTER TABLE students ADD COLUMN expelled TINYINT(1) DEFAULT 0;
+ALTER TABLE students ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 -->
 
@@ -30,3 +32,5 @@ CREATE TABLE student_offenses (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES students(id)
 );
+
+
