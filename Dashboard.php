@@ -16,25 +16,23 @@ if ($conn->connect_error) {
 $sql = "DELETE FROM students WHERE created_at < NOW() - INTERVAL 1 DAY";
 $conn->query($sql);
 
-// Handle form submission to add new student
+// Handle form submission to add or update student
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['add_student'])) {
         $name = $_POST['name'];
         $building = $_POST['building'];
         $section = $_POST['section'];
         $grade_level = $_POST['grade_level'];
-        $offense = $_POST['offense'];
         $community_service_done = isset($_POST['community_service_done']) ? 1 : 0;
         $expelled = isset($_POST['expelled']) ? 1 : 0;
 
-        $sql = "INSERT INTO students (name, building, section, grade_level, offense, community_service_done, expelled) VALUES ('$name', '$building', '$section', '$grade_level', '$offense', '$community_service_done', '$expelled')";
+        $sql = "INSERT INTO students (name, building, section, grade_level, community_service_done, expelled) VALUES ('$name', '$building', '$section', '$grade_level', '$community_service_done', '$expelled')";
         if ($conn->query($sql) === TRUE) {
             $message = "New record created successfully";
         } else {
             $message = "Error: " . $sql . "<br>" . $conn->error;
         }
-        
-        // Redirect to the same page to prevent re-submission
+
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
     } elseif (isset($_POST['update_student'])) {
@@ -42,18 +40,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $building = $_POST['building'];
         $section = $_POST['section'];
         $grade_level = $_POST['grade_level'];
-        $offense = $_POST['offense'];
         $community_service_done = isset($_POST['community_service_done']) ? 1 : 0;
         $expelled = isset($_POST['expelled']) ? 1 : 0;
 
-        $sql = "UPDATE students SET building='$building', section='$section', grade_level='$grade_level', offense='$offense', community_service_done='$community_service_done', expelled='$expelled' WHERE id='$id'";
+        $sql = "UPDATE students SET building='$building', section='$section', grade_level='$grade_level', community_service_done='$community_service_done', expelled='$expelled' WHERE id='$id'";
         if ($conn->query($sql) === TRUE) {
             $message = "Record updated successfully";
         } else {
             $message = "Error: " . $sql . "<br>" . $conn->error;
         }
 
-        // Redirect to the same page to prevent re-submission
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
     }
@@ -76,7 +72,7 @@ $sort_column = isset($_GET['sort']) ? $_GET['sort'] : 'id';
 $sort_order = isset($_GET['order']) ? $_GET['order'] : 'ASC';
 
 // Validate sort column and order
-$valid_columns = ['id', 'name', 'building', 'section', 'grade_level', 'offense', 'community_service_done', 'expelled'];
+$valid_columns = ['id', 'name', 'building', 'section', 'grade_level', 'community_service_done', 'expelled'];
 if (!in_array($sort_column, $valid_columns)) $sort_column = 'id';
 if ($sort_order !== 'ASC' && $sort_order !== 'DESC') $sort_order = 'ASC';
 
@@ -114,31 +110,16 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.0.0/dist/tailwind.min.css" rel="stylesheet">
+    <title>Student Community Service</title>
     <style>
-
-        body{
-            overflow-x: hidden;
-        }
-        /* Modal Container */
+        /* Modal Styles */
         .modal {
-            visibility: hidden;
-            opacity: 0;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
-            transition: opacity 0.3s ease;
+            display: none;
         }
-        /* Show Modal */
         .modal.show {
-            visibility: visible;
-            opacity: 1;
+            display: flex;
         }
-        /* Modal Content */
         .modal-content {
             background-color: white;
             padding: 1.5rem;
@@ -146,223 +127,195 @@ $conn->close();
             max-width: 600px;
             width: 100%;
         }
-        /* Circle Design */
-        .circle {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            color: white;
-            background-color: #2563eb;
-        }
-        .circle span {
-            font-size: 1.25rem;
-        }
-        .circle .icon {
+        .icon {
             font-size: 2rem;
         }
-
-        /* Conditional Background Color for Community Service and Expelled Status */
-.bg-community-service-done {
-    background-color: #d4edda; /* Light green */
-}
-
-.bg-community-service-not-done {
-    background-color: #f8d7da; /* Light red */
-}
-
-.bg-expelled {
-    background-color: #f8d7da; /* Light red */
-}
-
-.bg-not-expelled {
-    background-color: #d4edda; /* Light green */
-}
-
+        .bg-community-service-done {
+            background-color: #d4edda;
+        }
+        .bg-community-service-not-done {
+            background-color: #f8d7da;
+        }
+        .bg-expelled {
+            background-color: #f8d7da;
+        }
+        .bg-not-expelled {
+            background-color: #d4edda;
+        }
     </style>
-    <title>Student Community Service</title>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-600 font-sans">
     <!-- Header -->
     <header class="bg-blue-600 text-white p-4">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <!-- Navigation Links -->
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="text-lg font-bold text-black">Student's Dashboard</div>
             <nav class="flex space-x-4">
-                <a href="index.php" class="bg-blue-400 text-black hover:bg-blue-700 px-3 py-2 rounded cursor-pointer">Home</a>
+                <a href="index.php" class="bg-blue-400 text-black hover:bg-blue-700 px-3 py-2 rounded">Home</a>
                 <a href="logout.php" class="bg-red-700 hover:bg-red-800 px-3 py-2 rounded">Logout</a>
             </nav>
-            <!-- Admin Title -->
-            <div class="text-lg font-bold">Admin</div>
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="p-8">
-        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row space-y-8 lg:space-y-0 lg:space-x-8">
+    <main class="container mx-auto p-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Dashboard -->
-            <div class="w-full lg:w-1/4">
-                <h2 class="text-lg font-semibold mb-4 bg-blue-300 w-auto text-center h-10 pt-1 rounded-lg">Dashboard</h2>
-                <div class="bg-white p-6 rounded-lg shadow-md mb-6 flex flex-col items-center space-y-4">
-                    <div class="flex items-center space-x-4">
-                        <div class="circle relative left-[-50px]">
-                            <span class="font-bold"><?php echo $students_count; ?></span>
-                        </div>
+            <section class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold mb-4">Dashboard</h2>
+                <div class="flex flex-wrap gap-4">
+                    <div class="bg-blue-500 text-white rounded-lg shadow-lg p-4 flex items-center space-x-4">
+                        <i class="fas fa-user-graduate icon"></i>
                         <div>
-                            <p class="text-sm font-medium text-gray-700 relative left-[-40px]">Total Students</p>
+                            <div class="text-3xl font-bold"><?php echo htmlspecialchars($students_count, ENT_QUOTES, 'UTF-8'); ?></div>
+                            <p class="text-sm">Total Students</p>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <div class="circle bg-expelled relative left-[-40px]">
-                            <span class="font-bold"><?php echo $expelled_count; ?></span>
-                        </div>
+                    <div class="bg-red-500 text-white rounded-lg shadow-lg p-4 flex items-center space-x-4">
+                        <i class="fas fa-user-times icon"></i>
                         <div>
-                            <p class="text-sm font-medium text-gray-700 relative left-[-30px]">Total Expelled</p>
+                            <div class="text-3xl font-bold"><?php echo htmlspecialchars($expelled_count, ENT_QUOTES, 'UTF-8'); ?></div>
+                            <p class="text-sm">Total Expelled</p>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <div class="circle bg-community-service-done relative left-[-40px]">
-                            <span class="font-bold"><?php echo $community_service_count; ?></span>
-                        </div>
+                    <div class="bg-green-500 text-white rounded-lg shadow-lg p-4 flex items-center space-x-4">
+                        <i class="fas fa-hands-helping icon"></i>
                         <div>
-                            <p class="text-sm font-medium text-gray-700 relative left-[-30px]">Community Service Done</p>
+                            <div class="text-3xl font-bold"><?php echo htmlspecialchars($community_service_count, ENT_QUOTES, 'UTF-8'); ?></div>
+                            <p class="text-sm">Community Service Done</p>
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <!-- Recent Students List -->
-                <div class="bg-white p-4 rounded-lg shadow-md mb-6">
-                    <h3 class="font-semibold mb-4">Recent Students</h3>
-                    <?php if ($recent_students_result->num_rows > 0): ?>
-                        <ul class="space-y-2">
-                            <?php while ($row = $recent_students_result->fetch_assoc()): ?>
-                                <li class="border p-2 bg-white hover:bg-gray-50 rounded-lg">
-                                    <p><strong>Name:</strong> <?php echo $row['name']; ?></p>
-                                    <p><strong>Building:</strong> <?php echo $row['building']; ?></p>
-                                    <p><strong>Section:</strong> <?php echo $row['section']; ?></p>
-                                    <p><strong>Date:</strong> <?php echo date("F j, Y, g:i a", strtotime($row['created_at'])); ?></p>
-                                </li>
-                            <?php endwhile; ?>
-                        </ul>
-                    <?php else: ?>
-                        <p>No recent students found.</p>
+            <!-- Recent Students -->
+            <section class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold mb-4">Recent Students</h2>
+                <ul class="divide-y divide-gray-200">
+                    <?php while ($row = $recent_students_result->fetch_assoc()): ?>
+                        <li class="py-3 flex justify-between items-center">
+                            <div>
+                                <h3><strong>Name: </strong><?php echo htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                                <br>
+                                <p><strong>Building: </strong><?php echo htmlspecialchars($row['building'], ENT_QUOTES, 'UTF-8'); ?></p>
+                                <br>
+                                <p><strong>Section: </strong><?php echo htmlspecialchars($row['section'], ENT_QUOTES, 'UTF-8'); ?></p>
+                                <br>
+                                <p><strong>Date: </strong> <?php echo date("F j, Y, g:i a", strtotime($row['created_at'])); ?></p>
+                            </div>
+                            <!-- <a href="?edit=<?php echo htmlspecialchars($row['id'], ENT_QUOTES, 'UTF-8'); ?>" class="text-blue-600 hover:text-blue-800">Edit</a> -->
+                        </li>
+                    <?php endwhile; ?>
+                </ul>
+            </section>
+        </div>
+
+        <!-- Student Table -->
+        <section class="mt-8 bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold mb-4">Student List</h2>
+            <form method="GET" class="mb-4">
+                <div class="flex flex-wrap gap-4">
+                    <input type="text" name="search" placeholder="Search" value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>" class="border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2 ">
+                    <input type="text" name="section" placeholder="Section" value="<?php echo htmlspecialchars($section_filter, ENT_QUOTES, 'UTF-8'); ?>" class="border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2">
+                    <input type="text" name="building" placeholder="Building" value="<?php echo htmlspecialchars($building_filter, ENT_QUOTES, 'UTF-8'); ?>" class="border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2">
+                    <input type="text" name="name" placeholder="Name" value="<?php echo htmlspecialchars($name_filter, ENT_QUOTES, 'UTF-8'); ?>" class="border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2">
+                    <input type="text" name="grade" placeholder="Grade Level" value="<?php echo htmlspecialchars($grade_filter, ENT_QUOTES, 'UTF-8'); ?>" class="border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2">
+                    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Search</button>
+                </div>
+            </form>
+            <table class="w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="?sort=id&order=<?php echo $sort_order === 'ASC' ? 'DESC' : 'ASC'; ?>" class="flex items-center">
+                                ID
+                                <?php if ($sort_column === 'id'): ?>
+                                    <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<?php echo $sort_order === 'ASC' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'; ?>"></path>
+                                    </svg>
+                                <?php endif; ?>
+                            </a>
+                        </th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider ">Name</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Building</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Grade Level</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Community Service Done</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Expelled</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+    <?php while ($row = $result->fetch_assoc()): ?>
+        <?php
+            // Default background color
+            $bg_color = '';
+
+            // Apply color based on community service and expelled status
+            if ($row['expelled']) {
+                $bg_color = 'bg-red-200 '; // Expelled - Red
+            } elseif ($row['community_service_done']) {
+                $bg_color = 'bg-green-200'; // Community service done - Green
+            } else {
+                $bg_color = 'bg-yellow-200'; // Community service not done - Yellow
+            }
+        ?>
+        <tr class="<?php echo htmlspecialchars($bg_color, ENT_QUOTES, 'UTF-8'); ?>">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['id'], ENT_QUOTES, 'UTF-8'); ?></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center font-bold"><?php echo htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8'); ?></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center font-bold"><?php echo htmlspecialchars($row['building'], ENT_QUOTES, 'UTF-8'); ?></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center font-bold"><?php echo htmlspecialchars($row['section'], ENT_QUOTES, 'UTF-8'); ?></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center font-bold"><?php echo htmlspecialchars($row['grade_level'], ENT_QUOTES, 'UTF-8'); ?></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center font-bold">
+                <?php echo $row['community_service_done'] ? 'Yes' : 'No'; ?>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center font-bold">
+                <?php echo $row['expelled'] ? 'Yes' : 'No'; ?>
+            </td>
+        </tr>
+    <?php endwhile; ?>
+</tbody>
+
+            </table>
+            <div class="mt-4 flex justify-between items-center">
+                <div class="text-sm text-gray-600">Showing <?php echo ($offset + 1); ?> to <?php echo min($offset + $limit, $total_records); ?> of <?php echo $total_records; ?> results</div>
+                <div class="flex space-x-2">
+                    <?php if ($page > 1): ?>
+                        <a href="?page=<?php echo $page - 1; ?><?php echo !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : ''; ?>" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Previous</a>
+                    <?php endif; ?>
+                    <?php if ($page < $total_pages): ?>
+                        <a href="?page=<?php echo $page + 1; ?><?php echo !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : ''; ?>" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Next</a>
                     <?php endif; ?>
                 </div>
             </div>
-       
-            <!-- Students Table -->
-            <div class="w-full lg:w-3/4 bg-white p-6 rounded-lg shadow-md">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-lg font-semibold relative top-[-30px]">Student Records</h2>
-                    <form method="GET" class="flex space-x-4 mt-[50px]">
-                        <!-- Filter by Section -->
-                        <input type="text" name="section" placeholder="Section" class="border rounded p-2 relative left-[-65px]">
-                        <!-- Filter by Building -->
-                        <input type="text" name="building" placeholder="Building" class="border rounded p-2 relative left-[-65px]">
-                        <!-- Filter by Name -->
-                        <input type="text" name="name" placeholder="Name" class="border rounded p-2 relative left-[-65px]">
-                        <!-- Filter by Grade Level -->
-                        <input type="text" name="grade" placeholder="Grade Level" class="border rounded p-2 relative left-[-65px]">
-                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded relative left-[-70px] w-[100px]">Filter</button>
-                    </form>
-                </div>
-                <table class="min-w-full bg-white">
-                    <thead>
-                        <tr>
-                            <th class="py-2 px-4 border">ID</th>
-                            <th class="py-2 px-4 border">Name</th>
-                            <th class="py-2 px-4 border">Building</th>
-                            <th class="py-2 px-4 border">Section</th>
-                            <th class="py-2 px-4 border">Grade Level</th>
-                            <th class="py-2 px-4 border">Offense</th>
-                            <th class="py-2 px-4 border">Community Service</th>
-                            <th class="py-2 px-4 border">Expelled</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if ($result->num_rows > 0): ?>
-                            <?php while ($row = $result->fetch_assoc()): ?>
-                                <tr class="<?php echo $row['expelled'] ? 'bg-expelled' : 'bg-not-expelled'; ?>">
-                                    <td class="py-2 px-4 border"><?php echo $row['id']; ?></td>
-                                    <td class="py-2 px-4 border"><?php echo $row['name']; ?></td>
-                                    <td class="py-2 px-4 border"><?php echo $row['building']; ?></td>
-                                    <td class="py-2 px-4 border"><?php echo $row['section']; ?></td>
-                                    <td class="py-2 px-4 border"><?php echo $row['grade_level']; ?></td>
-                                    <td class="py-2 px-4 border"><?php echo $row['offense']; ?></td>
-                                    <td class="py-2 px-4 border">
-                                        <?php echo $row['community_service_done'] ? 'Done' : 'Not Done'; ?>
-                                    </td>
-                                    <td class="py-2 px-4 border">
-                                        <?php echo $row['expelled'] ? 'Yes' : 'No'; ?>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="9" class="py-2 px-4 border">No students found.</td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-                <div class="mt-6 flex justify-between items-center">
-                    <div>
-                        <p>Page <?php echo $page; ?> of <?php echo $total_pages; ?></p>
-                    </div>
-                    <div>
-                        <a href="?page=1" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">First</a>
-                        <a href="?page=<?php echo max(1, $page - 1); ?>" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Previous</a>
-                        <a href="?page=<?php echo min($total_pages, $page + 1); ?>" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Next</a>
-                        <a href="?page=<?php echo $total_pages; ?>" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Last</a>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </section>
     </main>
 
-    <!-- Modal for Editing Student Data -->
-    <?php if ($edit_student): ?>
-        <div class="modal show">
-            <div class="modal-content">
-                <h2 class="text-lg font-semibold mb-4">Edit Student</h2>
-                <form method="POST">
-                    <input type="hidden" name="id" value="<?php echo $edit_student['id']; ?>">
-                    <div class="mb-4">
-                        <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
-                        <input type="text" name="name" id="name" value="<?php echo $edit_student['name']; ?>" class="border rounded p-2 w-full">
-                    </div>
-                    <div class="mb-4">
-                        <label for="building" class="block text-sm font-medium text-gray-700">Building</label>
-                        <input type="text" name="building" id="building" value="<?php echo $edit_student['building']; ?>" class="border rounded p-2 w-full">
-                    </div>
-                    <div class="mb-4">
-                        <label for="section" class="block text-sm font-medium text-gray-700">Section</label>
-                        <input type="text" name="section" id="section" value="<?php echo $edit_student['section']; ?>" class="border rounded p-2 w-full">
-                    </div>
-                    <div class="mb-4">
-                        <label for="grade_level" class="block text-sm font-medium text-gray-700">Grade Level</label>
-                        <input type="text" name="grade_level" id="grade_level" value="<?php echo $edit_student['grade_level']; ?>" class="border rounded p-2 w-full">
-                    </div>
-                    <div class="mb-4">
-                        <label for="offense" class="block text-sm font-medium text-gray-700">Offense</label>
-                        <input type="text" name="offense" id="offense" value="<?php echo $edit_student['offense']; ?>" class="border rounded p-2 w-full">
-                    </div>
-                    <div class="mb-4">
-                        <label for="community_service_done" class="block text-sm font-medium text-gray-700">Community Service Done</label>
-                        <input type="checkbox" name="community_service_done" id="community_service_done" <?php echo $edit_student['community_service_done'] ? 'checked' : ''; ?> class="border rounded">
-                    </div>
-                    <div class="mb-4">
-                        <label for="expelled" class="block text-sm font-medium text-gray-700">Expelled</label>
-                        <input type="checkbox" name="expelled" id="expelled" <?php echo $edit_student['expelled'] ? 'checked' : ''; ?> class="border rounded">
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit" name="update_student" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Update</button>
-                        <a href="/" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded ml-2">Cancel</a>
-                    </div>
-                </form>
-            </div>
+    <!-- Modal for Adding/Editing Student -->
+    <div id="modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 justify-center items-center">
+        <div class="modal-content">
+            <span class="close cursor-pointer float-right text-gray-500 hover:text-gray-700">&times;</span>
+            <h2 class="text-2xl font-semibold mb-4">Modal Title</h2>
+            <p class="text-gray-700">Modal Content</p>
         </div>
-    <?php endif; ?>
+    </div>
+
+    <script>
+        document.querySelectorAll('[data-modal]').forEach(button => {
+            button.addEventListener('click', () => {
+                document.getElementById(button.getAttribute('data-modal')).classList.add('show');
+            });
+        });
+
+        document.querySelectorAll('.modal .close').forEach(close => {
+            close.addEventListener('click', () => {
+                close.closest('.modal').classList.remove('show');
+            });
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.remove('show');
+            }
+        });
+    </script>
 </body>
 </html>
