@@ -131,7 +131,7 @@ $conn->close();
     </style>
     <title>Student Community Service</title>
 </head>
-<body class="bg-gray-">
+<body class="bg-gray-600">
     <!-- Header -->
     <header class="bg-blue-600 text-white p-4">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
