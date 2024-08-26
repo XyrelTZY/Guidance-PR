@@ -35,4 +35,9 @@ CREATE TABLE student_offenses (
     FOREIGN KEY (student_id) REFERENCES students(id)
 );
 
+ALTER TABLE students
+CHANGE COLUMN section track VARCHAR(255);
+
+
+
 
